@@ -1,3 +1,16 @@
+mod chat;
+mod mqtt;
+mod user;
+
+use std::env;
+
 fn main() {
-    println!("Hello, world!");
+    let mut id: String = String::from("");
+    for arg in env::args() {
+        id = arg;
+    }
+    let mut client = mqtt::MQTT_Client::new(id);
+    client.connect();
+    client.run();
+    loop {}
 }
