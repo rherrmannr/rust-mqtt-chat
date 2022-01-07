@@ -9,7 +9,7 @@ fn main() {
     for arg in env::args() {
         id = arg;
     }
-    let mut client = mqtt::MQTT_Client::new(id);
+    let mut client = mqtt::MqttClient::new(id);
     client.connect();
     client.run();
     loop {}

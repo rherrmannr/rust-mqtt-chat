@@ -25,22 +25,29 @@ fn on_connect_failure_callback(client: &mqtt::AsyncClient, _: u16, error_code: i
     client.reconnect_with_callbacks(on_connect_success_callback, on_connect_failure_callback);
 }
 
-pub struct MQTT_Client {
+#[derive(Clone)]
+pub struct MqttClient {
     client: mqtt::AsyncClient,
     active: bool,
+    id: String,
 }
 
 // -chat/channels/..
-impl MQTT_Client {
+impl MqttClient {
     pub fn new(id: String) -> Self {
         let host = "tcp://localhost:1883".to_string();
+        let clone = id.clone();
         let create_options = mqtt::CreateOptionsBuilder::new()
             .server_uri(host)
-            .client_id(id.to_string())
+            .client_id(&clone.to_string())
             .user_data(Box::new(RwLock::new("chat/channels/default")))
             .finalize();
         let mut client = mqtt::AsyncClient::new(create_options).unwrap();
-        client.set_connected_callback(|_client: &mqtt::AsyncClient| {
+        client.set_connected_callback(move |client: &mqtt::AsyncClient| {
+            let mut payload = "user joined: ".to_owned();
+            payload.push_str(&clone.to_owned());
+            let message = mqtt::Message::new("chat/channels/default", payload, mqtt::QOS_1);
+            client.publish(message);
             println!("connected");
             // chat.notify(Notification::Connected);
         });
@@ -64,15 +71,15 @@ impl MQTT_Client {
         Self {
             client,
             active: false,
+            id: id,
         }
     }
 
     pub fn connect(&mut self) {
-        let message = mqtt::Message::new(
-            "chat/channels/default",
-            "Async subscriber lost connection",
-            1,
-        );
+        // playload=
+        let mut payload = "user left: ".to_owned();
+        payload.push_str(&self.id);
+        let message = mqtt::Message::new("chat/channels/default", payload, 1);
 
         let connect_options = mqtt::ConnectOptionsBuilder::new()
             .keep_alive_interval(Duration::from_secs(20))
@@ -90,7 +97,7 @@ impl MQTT_Client {
 
     pub fn run(mut self) {
         self.active = true;
-        thread::spawn(move || {
+        thread::spawn(move || loop {
             if !self.active {
                 return;
             }
